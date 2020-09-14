@@ -1,0 +1,47 @@
+{{template "header"}}
+        <title>首页 - 我的 beego 博客</title>
+    </head>
+    
+    <body>
+        <div class="container" style="width: 500px;">
+            <form class="form-horizontal" method="POST" action="/login">
+                <div class="form-group">
+                    <label>请输入管理员账号：</label>
+                    <input id="uname" class="form-control" placeholder="Account" name="uname">
+                </div>
+    
+                <div class="form-group">
+                    <label>请输入管理员密码：</label>
+                    <input id="pwd" type="password" class="form-control" placeholder="Password" name="pwd">
+                </div>
+    
+                <div class="checkbox">
+                    <label>
+                        <input name="autoLogin"type="checkbox">下次自动登录
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-default">登陆</button>
+            </form>
+
+            <script type="text/javascript">
+                function checkInput() {
+                    var uname = document.getElementById("uname");
+                    if (uname.value.length == 0) {
+                        alert("请输入管理员账号：")
+                        return false
+                    }
+
+                    var pwd = document.getElementById("pwd");
+                    if (pwd.value.length == 0) {
+                        alert("请输入管理员密码：")
+                        return false
+                    }
+
+                    return true
+                }
+            </script>
+        </div>
+    </body>
+
+</html>

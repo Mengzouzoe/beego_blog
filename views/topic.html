@@ -1,0 +1,50 @@
+{{template "header"}}
+        <title>首页 - 我的 beego 博客</title>
+    </head>
+
+    <body>
+        <div class="navbar navbar-default navbar-static-top">
+            <div class="container">
+                {{template "navbar" .}}
+            </div>
+        </div>
+
+        <div class="container">
+            <h1>文章列表</h1>
+            <a class="btn btn-default" href="/topic/add" type="submit">添加文章</a>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>文章名称</th>
+                        <th>创建时间</th>
+                        <th>修改时间</th>
+                        <th>阅览量</th>
+                        <th>回复数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Topics}}
+                    <tr>
+                        <th>{{.Id}}</th>
+                        <th><a href="/topic/view/{{.Id}}">{{.Title}}</a></th>
+                        <th>{{.Created}}</th>
+                        <th>{{.Updated}}</th>
+                        <th>{{.Views}}</th>
+                        <th>{{.ReplyCount}}</th>
+                        <th>
+                            <a href="/topic/delete/{{.Id}}">删除</a>
+                            <a href="/topic/modify/{{.Id}}">修改</a>
+                        </th>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+
+        <script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.0.3/jquery.min.js"></script>
+        <script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    </body>
+
+</html>

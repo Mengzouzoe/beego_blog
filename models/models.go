@@ -42,6 +42,14 @@ type Topic struct {
 	ReplyLastUserId int64
 }
 
+type Comment struct {
+	Id      int64
+	Tid     int64
+	Name    string
+	Content string    `orm:"size(1000)"`
+	Created time.Time `orm:"index"`
+}
+
 func RegisterDB() {
 	if !com.IsExist(_DB_NAME) {
 		os.MkdirAll(path.Dir(_DB_NAME), os.ModePerm)
@@ -50,7 +58,7 @@ func RegisterDB() {
 
 	orm.RegisterDriver(_MYSQL_DRIVER, orm.DRMySQL)
 
-	orm.RegisterModel(new(Category), new(Topic))
+	orm.RegisterModel(new(Category), new(Topic), new(Comment))
 
 	orm.RegisterDataBase("default", "mysql", "root:password@tcp(127.0.0.1:3306)/beego_blog1?charset=utf8", 30)
 }
@@ -101,13 +109,16 @@ func GetAllCategories() ([]*Category, error) {
 	return cates, err
 }
 
-func GetAllTopics(isDesc bool) (topics []*Topic, err error) {
+func GetAllTopics(category string, isDesc bool) (topics []*Topic, err error) {
 	o := orm.NewOrm()
 
 	topics = make([]*Topic, 0)
 
 	qs := o.QueryTable("topic")
 	if isDesc {
+		if len(category) > 0 {
+			qs = qs.Filter("category", category)
+		}
 		_, err = qs.OrderBy("-created").All(&topics)
 	} else {
 		_, err = qs.All(&topics)
@@ -181,4 +192,48 @@ func GetTopic(tid string) (*Topic, error) {
 	topic.Views++
 	_, err = o.Update(topic)
 	return topic, nil
+}
+
+func AddReply(tid, name, content string) error {
+	tidNum, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	reply := &Comment{
+		Tid:     tidNum,
+		Name:    name,
+		Content: content,
+		Created: time.Now(),
+	}
+	o := orm.NewOrm()
+	_, err = o.Insert(reply)
+	return err
+}
+
+func GetAllReplies(tid string) (replies []*Comment, err error) {
+	tidNum, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	replies = make([]*Comment, 0)
+
+	o := orm.NewOrm()
+	qs := o.QueryTable("comment")
+	_, err = qs.Filter("tid", tidNum).All(&replies)
+	return replies, err
+}
+
+func DeleteReply(rid string) error {
+	ridNum, err := strconv.ParseInt(rid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	o := orm.NewOrm()
+
+	reply := &Comment{Id: ridNum}
+	_, err = o.Delete(reply)
+	return err
 }

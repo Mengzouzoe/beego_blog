@@ -4,18 +4,23 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/unknwon/com"
 )
 
 const (
-	_DB_NAME      = "data/myapp.db"
+	// 设置数据库路径
+	_DB_NAME = "data/myapp.db"
+	// 设置数据库名称
 	_MYSQL_DRIVER = "mysql"
 )
 
+// 分类
 type Category struct {
 	Id              int64
 	Title           string
@@ -26,10 +31,12 @@ type Category struct {
 	TopicLastUserId int64
 }
 
+// 文章
 type Topic struct {
 	Id              int64
 	Uid             int64
 	Title           string
+	Labels          string
 	Category        string
 	Content         string `orm:"size(5000)"`
 	Attachment      string
@@ -42,6 +49,7 @@ type Topic struct {
 	ReplyLastUserId int64
 }
 
+// 评论
 type Comment struct {
 	Id      int64
 	Tid     int64
@@ -109,7 +117,9 @@ func GetAllCategories() ([]*Category, error) {
 	return cates, err
 }
 
-func GetAllTopics(category string, isDesc bool) (topics []*Topic, err error) {
+func GetAllTopics(category string, label string, isDesc bool) (topics []*Topic, err error) {
+	//Testing
+	//beego.Alert(label)
 	o := orm.NewOrm()
 
 	topics = make([]*Topic, 0)
@@ -119,43 +129,95 @@ func GetAllTopics(category string, isDesc bool) (topics []*Topic, err error) {
 		if len(category) > 0 {
 			qs = qs.Filter("category", category)
 		}
+		if len(label) > 0 {
+			qs = qs.Filter("labels__contains", "$"+label+"#")
+		}
 		_, err = qs.OrderBy("-created").All(&topics)
+
 	} else {
 		_, err = qs.All(&topics)
 	}
 	return topics, err
 }
 
-func AddTopic(title, category, content string) error {
+func AddTopic(title, category, label, content string) error {
+	//处理标签
+	label = "$" + strings.Join(strings.Split(label, " "), "#$") + "#"
+
 	o := orm.NewOrm()
 
 	topic := &Topic{
 		Title:    title,
 		Content:  content,
 		Category: category,
+		Labels:   label,
 		Created:  time.Now(),
 		Updated:  time.Now(),
 		//Todo:无法解决Error 1048: Column 'reply_time' cannot be null所出现的问题
 		ReplyTime: time.Now(),
 	}
 	_, err := o.Insert(topic)
+	if err != nil {
+		return err
+	}
+
+	//beego.Alert("I am here")
+	// 更新分类统计
+	cate := new(Category)
+	qs := o.QueryTable("category")
+	err = qs.Filter("title", category).One(cate)
+	//!!!!err == nil
+	if err == nil {
+		// 如果不存在我们就直接忽略，只当分类存在时进行更新
+		cate.TopicCount++
+		beego.Alert(cate.TopicCount)
+		_, err = o.Update(cate)
+	}
+
 	return err
 }
 
-func ModifyTopic(tid, title, category, content string) error {
+func ModifyTopic(tid, title, category, label, content string) error {
 	tidNum, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
 		return err
 	}
 
+	label = "$" + strings.Join(strings.Split(label, " "), "#$") + "#"
+
+	var oldCate string
 	o := orm.NewOrm()
 	topic := &Topic{Id: tidNum}
 	if o.Read(topic) == nil {
+		oldCate = topic.Category
 		topic.Title = title
 		topic.Content = content
 		topic.Category = category
+		topic.Labels = label
 		topic.Updated = time.Now()
-		o.Update(topic)
+		_, err = o.Update(topic)
+		if err != nil {
+			return err
+		}
+	}
+
+	//更新分类统计
+	if len(oldCate) > 0 {
+		cate := new(Category)
+		qs := o.QueryTable("category")
+		err = qs.Filter("title", oldCate).One(cate)
+		if err == nil {
+			cate.TopicCount--
+			_, err = o.Update(cate)
+		}
+	}
+
+	cate := new(Category)
+	qs := o.QueryTable("category")
+	err = qs.Filter("title", category).One(cate)
+	if err == nil {
+		cate.TopicCount++
+		_, err = o.Update(cate)
 	}
 	return nil
 }
@@ -168,8 +230,28 @@ func DeleteTopic(tid string) error {
 
 	o := orm.NewOrm()
 
+	var oldCate string
 	topic := &Topic{Id: tidNum}
-	_, err = o.Delete(topic)
+	//!!! o.Read(topic) == nil
+	if o.Read(topic) == nil {
+		oldCate = topic.Category
+		_, err = o.Delete(topic)
+		if err != nil {
+			return err
+		}
+	}
+
+	//beego.Alert("I am outside")
+	if len(oldCate) > 0 {
+		//beego.Alert("I am inside")
+		cate := new(Category)
+		qs := o.QueryTable("category")
+		err = qs.Filter("title", topic.Category).One(cate)
+		if err == nil {
+			cate.TopicCount--
+			_, err = o.Update(cate)
+		}
+	}
 	return err
 }
 
@@ -191,6 +273,9 @@ func GetTopic(tid string) (*Topic, error) {
 
 	topic.Views++
 	_, err = o.Update(topic)
+
+	topic.Labels = strings.Replace(strings.Replace(
+		topic.Labels, "#", " ", -1), "$", "", -1)
 	return topic, nil
 }
 
@@ -208,6 +293,16 @@ func AddReply(tid, name, content string) error {
 	}
 	o := orm.NewOrm()
 	_, err = o.Insert(reply)
+	if err != nil {
+		return err
+	}
+
+	topic := &Topic{Id: tidNum}
+	if o.Read(topic) == nil {
+		topic.ReplyTime = time.Now()
+		topic.ReplyCount++
+		_, err = o.Update(topic)
+	}
 	return err
 }
 
@@ -233,7 +328,28 @@ func DeleteReply(rid string) error {
 
 	o := orm.NewOrm()
 
+	var tidNum int64
 	reply := &Comment{Id: ridNum}
-	_, err = o.Delete(reply)
+	if o.Read(reply) != nil {
+		tidNum = reply.Tid
+		_, err = o.Delete(reply)
+		if err != nil {
+			return err
+		}
+	}
+
+	replies := make([]*Comment, 0)
+	qs := o.QueryTable("comment")
+	_, err = qs.Filter("tid", tidNum).OrderBy("-created").All(&replies)
+	if err != nil {
+		return err
+	}
+
+	topic := &Topic{Id: tidNum}
+	if o.Read(topic) == nil {
+		topic.ReplyTime = replies[0].Created
+		topic.ReplyCount = int64(len(replies))
+		_, err = o.Update(topic)
+	}
 	return err
 }

@@ -21,6 +21,7 @@
                         <th>修改时间</th>
                         <th>阅览量</th>
                         <th>回复数</th>
+                        <th>最后回复</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -33,6 +34,7 @@
                         <th>{{.Updated}}</th>
                         <th>{{.Views}}</th>
                         <th>{{.ReplyCount}}</th>
+                        <th>{{.ReplyTime}}</th>
                         <th>
                             <a href="/topic/delete/{{.Id}}">删除</a>
                             <a href="/topic/modify/{{.Id}}">修改</a>

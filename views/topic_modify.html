@@ -23,6 +23,11 @@
                     <input type="text" class="form-control" name="category" value="{{.Topic.Category}}">
                 </div>
 
+                <div class="form-group">
+                    <label>文章标签：</label>
+                    <input type="text" class="form-control" name="label" value="{{.Topic.Labels}}">
+                </div>
+
                 <!-- Todo: Error: template: topic_modify.html:23:91: executing "topic_modify.html" at <.Topic.Category>: can't evaluate field Category in type interface {} -->
                 <div class="form-group">
 					<label>文章内容：</label>

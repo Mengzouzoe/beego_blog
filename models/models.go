@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/unknwon/com"
@@ -140,19 +139,20 @@ func GetAllTopics(category string, label string, isDesc bool) (topics []*Topic, 
 	return topics, err
 }
 
-func AddTopic(title, category, label, content string) error {
+func AddTopic(title, category, label, content, attachment string) error {
 	//处理标签
 	label = "$" + strings.Join(strings.Split(label, " "), "#$") + "#"
 
 	o := orm.NewOrm()
 
 	topic := &Topic{
-		Title:    title,
-		Content:  content,
-		Category: category,
-		Labels:   label,
-		Created:  time.Now(),
-		Updated:  time.Now(),
+		Title:      title,
+		Content:    content,
+		Category:   category,
+		Labels:     label,
+		Attachment: attachment,
+		Created:    time.Now(),
+		Updated:    time.Now(),
 		//Todo:无法解决Error 1048: Column 'reply_time' cannot be null所出现的问题
 		ReplyTime: time.Now(),
 	}
@@ -170,14 +170,14 @@ func AddTopic(title, category, label, content string) error {
 	if err == nil {
 		// 如果不存在我们就直接忽略，只当分类存在时进行更新
 		cate.TopicCount++
-		beego.Alert(cate.TopicCount)
+		//beego.Alert(cate.TopicCount)
 		_, err = o.Update(cate)
 	}
 
 	return err
 }
 
-func ModifyTopic(tid, title, category, label, content string) error {
+func ModifyTopic(tid, title, category, label, content, attachment string) error {
 	tidNum, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
 		return err
@@ -185,15 +185,17 @@ func ModifyTopic(tid, title, category, label, content string) error {
 
 	label = "$" + strings.Join(strings.Split(label, " "), "#$") + "#"
 
-	var oldCate string
+	var oldCate, oldAttach string
 	o := orm.NewOrm()
 	topic := &Topic{Id: tidNum}
 	if o.Read(topic) == nil {
 		oldCate = topic.Category
+		oldAttach = topic.Attachment
 		topic.Title = title
 		topic.Content = content
 		topic.Category = category
 		topic.Labels = label
+		topic.Attachment = attachment
 		topic.Updated = time.Now()
 		_, err = o.Update(topic)
 		if err != nil {
@@ -210,6 +212,11 @@ func ModifyTopic(tid, title, category, label, content string) error {
 			cate.TopicCount--
 			_, err = o.Update(cate)
 		}
+	}
+
+	//删除旧的附件
+	if len(oldCate) > 0 {
+		os.Remove(path.Join("attachment", oldAttach))
 	}
 
 	cate := new(Category)
